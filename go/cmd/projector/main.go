@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/debobrad579/projector/internal/config"
+	"github.com/debobrad579/projector/internal/projector"
 )
 
 func main() {
-	options, err := config.GetOptions()
+	options, err := projector.GetOptions()
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 
-	cfg, err := config.GetConfig(options)
+	cfg, err := projector.GetConfig(options)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

@@ -1,4 +1,4 @@
-package config
+package projector
 
 import (
 	"errors"
@@ -16,10 +16,10 @@ const (
 )
 
 type Config struct {
-	args      []string
-	operation Operation
-	config    string
-	pwd       string
+	Args      []string
+	Operation Operation
+	Config    string
+	Pwd       string
 }
 
 func getPwd(pwd string) (string, error) {
@@ -78,7 +78,7 @@ func getArgs(operation Operation, args []string) ([]string, error) {
 		return args[1:], nil
 	case PrintOperation:
 		if len(args) > 1 {
-			return []string{}, fmt.Errorf("expected 0 or 1 argument but got %d", len(args)-1)
+			return []string{}, fmt.Errorf("expected 0 or 1 arguments but got %d", len(args))
 		}
 		return args, nil
 	default:
@@ -105,9 +105,9 @@ func GetConfig(opts *Options) (*Config, error) {
 	}
 
 	return &Config{
-		args:      args,
-		operation: operation,
-		config:    config,
-		pwd:       pwd,
+		Args:      args,
+		Operation: operation,
+		Config:    config,
+		Pwd:       pwd,
 	}, nil
 }
