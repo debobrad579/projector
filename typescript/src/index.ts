@@ -1,3 +1,7 @@
-import getOptions from "./opts"
+import { getConfig } from "./config"
+import { getOptions } from "./opts"
 
-console.log(getOptions())
+const opts = getOptions()
+const config = getConfig(opts)
+
+console.log(config)

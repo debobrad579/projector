@@ -13,5 +13,10 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	fmt.Printf("%+v", options)
+	cfg, err := config.GetConfig(options)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	fmt.Printf("%+v", cfg)
 }

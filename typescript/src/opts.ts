@@ -1,6 +1,12 @@
 import cli from "command-line-args"
 
-export default function getOptions() {
+export type Opts = {
+  args: string[]
+  config?: string
+  pwd?: string
+}
+
+export function getOptions(): Opts {
   return cli([
     {
       name: "args",
@@ -18,5 +24,5 @@ export default function getOptions() {
       alias: "p",
       type: String,
     },
-  ])
+  ]) as Opts
 }
