@@ -16,16 +16,20 @@ func writeConfig(t *testing.T) string {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "projector.json")
 
-	bytes, err := json.Marshal(map[string]map[string]string{
-		"/": {
-			"foo": "bar1",
-			"bar": "baz",
-		},
-		"/foo": {
-			"foo": "bar2",
-		},
-		"/foo/bar": {
-			"foo": "bar3",
+	bytes, err := json.Marshal(struct {
+		Projector map[string]map[string]string `json:"projector"`
+	}{
+		Projector: map[string]map[string]string{
+			"/": {
+				"foo": "bar1",
+				"bar": "baz",
+			},
+			"/foo": {
+				"foo": "bar2",
+			},
+			"/foo/bar": {
+				"foo": "bar3",
+			},
 		},
 	})
 	if err != nil {
@@ -45,15 +49,10 @@ func getProjector(
 ) projector.Projector {
 	t.Helper()
 
-	p, err := projector.New(&projector.Config{
+	return projector.New(&projector.Config{
 		Pwd:    pwd,
 		Config: writeConfig(t),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return p
 }
 
 func TestGetValueAll(t *testing.T) {

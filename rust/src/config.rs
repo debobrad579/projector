@@ -56,9 +56,12 @@ fn get_pwd(pwd: Option<PathBuf>) -> Result<PathBuf> {
 fn get_config(config: Option<PathBuf>) -> Result<PathBuf> {
     match config {
         Some(path) => Ok(path),
-        None => std::env::var("XDG_CONFIG_HOME")
-            .context("unable to get XDG_CONFIG_HOME")
-            .map(|path| PathBuf::from(path).join("projector/projector.json")),
+        None => match std::env::var("XDG_CONFIG_HOME") {
+            Ok(path) => Ok(PathBuf::from(path).join("projector/projector.json")),
+            Err(_) => std::env::var("HOME")
+                .context("failed to get config path")
+                .map(|path| PathBuf::from(path).join(".projector.json")),
+        },
     }
 }
 
@@ -93,17 +96,17 @@ mod test {
     }
 
     #[test]
-    fn test_print_all() -> Result<()> {
+    fn print_all() -> Result<()> {
         test_config(vec![], Operation::Print(None))
     }
 
     #[test]
-    fn test_print() -> Result<()> {
+    fn print() -> Result<()> {
         test_config(vec!["foo".into()], Operation::Print(Some("foo".into())))
     }
 
     #[test]
-    fn test_add() -> Result<()> {
+    fn add() -> Result<()> {
         test_config(
             vec!["add".into(), "foo".into(), "bar".into()],
             Operation::Add("foo".into(), "bar".into()),
@@ -111,7 +114,7 @@ mod test {
     }
 
     #[test]
-    fn test_remove() -> Result<()> {
+    fn remove() -> Result<()> {
         test_config(
             vec!["remove".into(), "foo".into()],
             Operation::Remove("foo".into()),
@@ -119,17 +122,17 @@ mod test {
     }
 
     #[test]
-    fn test_print_error() {
+    fn print_error() {
         test_error(vec!["foo".into(), "bar".into()])
     }
 
     #[test]
-    fn test_add_error() {
+    fn add_error() {
         test_error(vec!["add".into(), "foo".into()])
     }
 
     #[test]
-    fn test_remove_error() {
+    fn remove_error() {
         test_error(vec!["remove".into(), "foo".into(), "bar".into()])
     }
 }

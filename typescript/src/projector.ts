@@ -70,6 +70,14 @@ export class Projector {
     }
   }
 
+  save() {
+    const configPath = path.dirname(this.config.config)
+    if (!fs.existsSync(configPath)) {
+      fs.mkdirSync(configPath, { recursive: true })
+    }
+    fs.writeFileSync(this.config.config, JSON.stringify(this.data))
+  }
+
   static fromConfig(config: Config): Projector {
     if (fs.existsSync(config.config)) {
       try {

@@ -1,43 +1,47 @@
-use std::{collections::HashMap, fs::File, iter, path::PathBuf};
+use std::{collections::HashMap, iter, path::PathBuf};
 
-use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct Data {
     projector: HashMap<PathBuf, HashMap<String, String>>,
 }
 
-pub struct Projector {
-    config: Config,
+#[derive(Debug)]
+pub struct Projector<'a> {
+    config: &'a Config,
     data: Data,
 }
 
-impl TryFrom<Config> for Projector {
-    type Error = Error;
-
-    fn try_from(config: Config) -> Result<Self> {
+impl<'a> From<&'a Config> for Projector<'a> {
+    fn from(config: &'a Config) -> Self {
         match std::fs::exists(&config.config) {
-            Ok(true) => Ok(Projector {
-                data: serde_json::from_str(&std::fs::read_to_string(&config.config)?)?,
+            Ok(true) => Projector {
+                data: serde_json::from_str(
+                    &std::fs::read_to_string(&config.config).unwrap_or_default(),
+                )
+                .unwrap_or_default(),
                 config,
-            }),
-            Ok(false) => File::create(&config.config).map(|_| {
-                Ok(Projector {
-                    data: Data {
-                        projector: HashMap::new(),
-                    },
-                    config,
-                })
-            })?,
-            Err(e) => Err(e.into()),
+            },
+            Ok(false) | Err(_) => Projector {
+                data: Data::default(),
+                config,
+            },
         }
     }
 }
 
-impl Projector {
+impl<'a> Projector<'a> {
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        if let Some(parent) = self.config.config.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::write(&self.config.config, serde_json::to_string(&self.data)?)
+    }
+
     pub fn get_value_all(&self) -> HashMap<String, String> {
         iter::successors(Some(self.config.pwd.as_path()), |p| p.parent())
             .filter_map(|p| self.data.projector.get(p))
@@ -82,48 +86,47 @@ mod test {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("projector.json");
 
-        let data: HashMap<PathBuf, HashMap<String, String>> = [
-            (
-                "/".into(),
-                [
-                    ("foo".to_string(), "bar1".to_string()),
-                    ("bar".to_string(), "baz".to_string()),
-                ]
-                .into(),
-            ),
-            (
-                "/foo".into(),
-                [("foo".to_string(), "bar2".to_string())].into(),
-            ),
-            (
-                "/foo/bar".into(),
-                [("foo".to_string(), "bar3".to_string())].into(),
-            ),
-        ]
-        .into();
-
         fs::write(
             &path,
-            serde_json::to_string(&serde_json::json!({ "projector": data })).unwrap(),
+            serde_json::to_string(&serde_json::json!({
+                "projector": {
+                    "/": {
+                        "foo": "bar1",
+                        "bar": "baz"
+                    },
+                    "/foo": {
+                        "foo": "bar2"
+                    },
+                    "/foo/bar": {
+                        "foo": "bar3"
+                    }
+                }
+            }))
+            .unwrap(),
         )
         .unwrap();
 
         (dir, path.to_string_lossy().to_string())
     }
 
-    fn get_projector(pwd: &str) -> Projector {
-        let (_dir, config_path) = write_config();
+    fn make_config(config_path: &str, pwd: &str) -> Config {
         Config {
             operation: crate::config::Operation::Print(None),
             pwd: PathBuf::from(pwd),
             config: PathBuf::from(config_path),
         }
-        .try_into()
-        .unwrap()
+    }
+
+    fn make_projector<'a>(config: &'a Config) -> Projector<'a> {
+        Projector::from(config)
     }
 
     #[test]
-    fn test_get_value_all() {
+    fn get_value_all() {
+        let (_dir, config_path) = write_config();
+        let config = make_config(&config_path, "/foo/bar");
+        let projector = make_projector(&config);
+
         let expected: HashMap<String, String> = vec![
             ("foo".to_string(), "bar3".to_string()),
             ("bar".to_string(), "baz".to_string()),
@@ -131,20 +134,24 @@ mod test {
         .into_iter()
         .collect();
 
-        assert_eq!(get_projector("/foo/bar").get_value_all(), expected);
+        assert_eq!(projector.get_value_all(), expected);
     }
 
     #[test]
-    fn test_get_value() {
-        let projector = get_projector("/foo/bar");
+    fn get_value() {
+        let (_dir, config_path) = write_config();
+        let config = make_config(&config_path, "/foo/bar");
+        let projector = make_projector(&config);
 
         assert_eq!(projector.get_value("foo"), Some(&"bar3".to_string()));
         assert_eq!(projector.get_value("bar"), Some(&"baz".to_string()));
     }
 
     #[test]
-    fn test_set_value() {
-        let mut projector = get_projector("/foo/bar");
+    fn set_value() {
+        let (_dir, config_path) = write_config();
+        let config = make_config(&config_path, "/foo/bar");
+        let mut projector = make_projector(&config);
 
         projector.set_value("foo", "bar");
         assert_eq!(projector.get_value("foo"), Some(&"bar".to_string()));
@@ -157,8 +164,10 @@ mod test {
     }
 
     #[test]
-    fn test_remove_value() {
-        let mut projector = get_projector("/foo/bar");
+    fn remove_value() {
+        let (_dir, config_path) = write_config();
+        let config = make_config(&config_path, "/foo/bar");
+        let mut projector = make_projector(&config);
 
         projector.remove_value("foo");
         assert_eq!(projector.get_value("foo"), Some(&"bar2".to_string()));

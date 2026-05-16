@@ -23,6 +23,10 @@ function getConfigLocation(opts: Opts) {
 }
 
 function getOperation(opts: Opts): Operation {
+  if (!opts.args) {
+    return "print"
+  }
+
   if (opts.args[0] === "add" || opts.args[0] === "remove") {
     return opts.args[0]
   } else {
@@ -31,7 +35,7 @@ function getOperation(opts: Opts): Operation {
 }
 
 function getArgs(opts: Opts): string[] {
-  if (opts.args.length < 0) {
+  if (!opts.args) {
     return []
   }
 
